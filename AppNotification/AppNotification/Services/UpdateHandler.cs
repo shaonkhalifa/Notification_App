@@ -21,11 +21,7 @@ public class UpdateHandler : IUpdateHandler
 
     public async Task HandleUpdateAsync(ITelegramBotClient _, Update update, CancellationToken cancellationToken)
     {
-        var v = update.Type;
-        if (update.Type == UpdateType.Message && update.Message.Contact != null)
-        {
-
-        }
+        
         var handler = update switch
         {
             // UpdateType.Unknown:
@@ -298,6 +294,9 @@ public class UpdateHandler : IUpdateHandler
         string b = "01721415244";
 
         string phoneNumber = message.Contact.PhoneNumber;
+        long? userId = message.Contact.UserId;
+        string userName = message.Contact.FirstName + message.Contact.LastName;
+        long chatId = message.Chat.Id;
         if (phoneNumber == a)
         {
             var pollOptions = new[]
@@ -326,10 +325,27 @@ public class UpdateHandler : IUpdateHandler
         }
         else
         {
+
+            
+
             await _botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
                 text: $"Thank you for sharing your phone number: {phoneNumber}  You will get regular Update",
                 cancellationToken: cancellationToken);
+
+            DateTimeOffset dateTimeOffset = DateTimeOffset.UtcNow; // Example
+            DateTime dateTime = dateTimeOffset.DateTime;
+
+            await _botClient.RestrictChatMemberAsync(
+                chatId: message.Chat.Id,
+                userId: message.From.Id, // Restrict the specific user who shared the contact
+                permissions: new ChatPermissions
+                {
+                    CanSendMessages = false,
+                },
+                untilDate: dateTime.AddMinutes(5),
+                cancellationToken: cancellationToken);
+
 
         }
 
@@ -422,6 +438,11 @@ public class UpdateHandler : IUpdateHandler
         // Cooldown in case of network connection error
         if (exception is RequestException)
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+    }
+
+    public async Task SendMessage(long U,string m)
+    {
+        await _botClient.SendTextMessageAsync(chatId: U, text: m);
     }
 }
 

@@ -20,6 +20,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddScoped<UpdateHandler>();
         services.AddScoped<ReceiverService>();
         services.AddHostedService<PollingService>();
+        services.AddHostedService<TelegramBotService>();
     })
     .Build();
 

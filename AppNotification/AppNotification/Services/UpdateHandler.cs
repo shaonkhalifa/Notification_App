@@ -21,7 +21,7 @@ public class UpdateHandler : IUpdateHandler
 
     public async Task HandleUpdateAsync(ITelegramBotClient _, Update update, CancellationToken cancellationToken)
     {
-        
+
         var handler = update switch
         {
             // UpdateType.Unknown:
@@ -31,12 +31,13 @@ public class UpdateHandler : IUpdateHandler
             // UpdateType.PreCheckoutQuery:
             // UpdateType.Poll:
 
-            { Message: { } message } => BotOnMessageReceived(message, cancellationToken),
+            { Message: { } message } => BotContactSharedReceived(message, cancellationToken),
             { EditedMessage: { } message } => BotOnMessageReceived(message, cancellationToken),
             { CallbackQuery: { } callbackQuery } => BotOnCallbackQueryReceived(callbackQuery, cancellationToken),
             { InlineQuery: { } inlineQuery } => BotOnInlineQueryReceived(inlineQuery, cancellationToken),
             { ChosenInlineResult: { } chosenInlineResult } => BotOnChosenInlineResultReceived(chosenInlineResult, cancellationToken),
             { Poll: { } pollAnswer } => BotPollAnswerReceived(pollAnswer, update, cancellationToken),
+            { MyChatMember: { } chatmember } => HandelBlock(chatmember, cancellationToken),
 
 
 
@@ -60,20 +61,26 @@ public class UpdateHandler : IUpdateHandler
 
         var action = messageText.Split(' ')[0] switch
         {
-            "/subscribe" => RequestForSubscribtions(_botClient, message, cancellationToken),
-            "/inline_keyboard" => SendInlineKeyboard(_botClient, message, cancellationToken),
-            "/keyboard" => SendReplyKeyboard(_botClient, message, cancellationToken),
-            "/remove" => RemoveKeyboard(_botClient, message, cancellationToken),
-            "/photo" => SendFile(_botClient, message, cancellationToken),
-            "/request" => RequestContactAndLocation(_botClient, message, cancellationToken),
-            "/request_contact" => RequestContact(_botClient, message, cancellationToken),
-            "/inline_mode" => StartInlineQuery(_botClient, message, cancellationToken),
-            "/throw" => FailingHandler(_botClient, message, cancellationToken),
-
-            _ => Usage(_botClient, message, cancellationToken)
+            "/start" => RequestForSubscribtions(_botClient, message, cancellationToken),
+            _ => DeleteMessage(_botClient, message, cancellationToken)
         };
-        Message sentMessage = await action;
-        _logger.LogInformation("The message was sent with id: {SentMessageId}", sentMessage.MessageId);
+
+        //var action = messageText.Split(' ')[0] switch
+        //{
+        //    "/subscribe" => RequestForSubscribtions(_botClient, message, cancellationToken),
+        //    "/inline_keyboard" => SendInlineKeyboard(_botClient, message, cancellationToken),
+        //    "/keyboard" => SendReplyKeyboard(_botClient, message, cancellationToken),
+        //    "/remove" => RemoveKeyboard(_botClient, message, cancellationToken),
+        //    "/photo" => SendFile(_botClient, message, cancellationToken),
+        //    "/request" => RequestContactAndLocation(_botClient, message, cancellationToken),
+        //    "/request_contact" => RequestContact(_botClient, message, cancellationToken),
+        //    "/inline_mode" => StartInlineQuery(_botClient, message, cancellationToken),
+        //    "/throw" => FailingHandler(_botClient, message, cancellationToken),
+
+        //    _ => Usage(_botClient, message, cancellationToken)
+        //};
+        //  Message sentMessage = await action;
+        // _logger.LogInformation("The message was sent with id: {SentMessageId}", sentMessage.MessageId);
 
         static async Task<Message> SendInlineKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
         {
@@ -273,82 +280,178 @@ public class UpdateHandler : IUpdateHandler
 #pragma warning restore RCS1163 // Unused parameter.
     }
 
+
+    private Dictionary<long, bool> buttonClicked = new Dictionary<long, bool>();
     // Process Inline Keyboard callback data
     private async Task BotOnCallbackQueryReceived(CallbackQuery callbackQuery, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Received inline keyboard callback from: {CallbackQueryId}", callbackQuery.Id);
 
-        await _botClient.AnswerCallbackQueryAsync(
-            callbackQueryId: callbackQuery.Id,
-            text: $"Received {callbackQuery.Data}",
-            cancellationToken: cancellationToken);
+        var a = callbackQuery.From.Id;
+        var b = callbackQuery.From.Username;
+        var c = callbackQuery.From.FirstName;
+        var d = callbackQuery.From.LastName;
+        var f = callbackQuery.Message!.Chat.Id;
+        var g = callbackQuery.Message!.Contact;
+        // var e = callbackQuery.Message!.Contact.PhoneNumber;
+        if (callbackQuery.Data == "request_contact_callback")
+        {
+            InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup(new[] { new InlineKeyboardButton[0] });
+            await _botClient.EditMessageReplyMarkupAsync(chatId: callbackQuery.Message.Chat.Id, messageId: callbackQuery.Message.MessageId, replyMarkup: keyboard);
+        }
+
+
+        var requestContactButton = new KeyboardButton("Share Contact")
+        {
+            RequestContact = true
+
+        };
+
+        var requestReplyKeyboard = new ReplyKeyboardMarkup(new[]
+        {
+             new[] { requestContactButton }
+        });
+        requestReplyKeyboard.OneTimeKeyboard = true;
+        requestReplyKeyboard.IsPersistent = false;
 
         await _botClient.SendTextMessageAsync(
-            chatId: callbackQuery.Message!.Chat.Id,
-            text: $"Received {callbackQuery.Data}",
-            cancellationToken: cancellationToken);
+           chatId: callbackQuery.Message!.Chat.Id,
+           text: "Please share your contact information:",
+           replyMarkup: requestReplyKeyboard,
+        cancellationToken: cancellationToken);
+
+
+
     }
+
     public async Task BotContactSharedReceived(Message message, CancellationToken cancellationToken)
     {
-        string a = "8801745427269";
-        string b = "01721415244";
 
-        string phoneNumber = message.Contact.PhoneNumber;
-        long? userId = message.Contact.UserId;
-        string userName = message.Contact.FirstName + message.Contact.LastName;
-        long chatId = message.Chat.Id;
-        if (phoneNumber == a)
+        if (message.Contact != null)
         {
-            var pollOptions = new[]
-            {
-                new PollOption(),
-                new PollOption(),
-                new PollOption(),
-            };
-            pollOptions[0].Text = "EYE";
-            pollOptions[1].Text = "Google";
-            pollOptions[2].Text = "Microsoft";
 
-            var poll = new Poll
-            {
-                Question = "Choose your subscription preference:",
-                Options = pollOptions,
-            };
-            var stringOptions = pollOptions.Select(option => option.Text).ToArray();
+            string b = "8801745427269";
+            string a = "01721415244";
 
-            await _botClient.SendPollAsync(
-               chatId: message.Chat.Id,
-               question: "Which is your Company?",
-               options: stringOptions,
-               cancellationToken: cancellationToken
-           );
+            string phoneNumber = message.Contact.PhoneNumber;
+            long? userId = message.Contact.UserId;
+            string userName = message.Contact.FirstName + message.Contact.LastName;
+            long chatId = message.Chat.Id;
+
+
+            if (phoneNumber == a)
+            {
+                var pollOptions = new[]
+                {
+                new PollOption(),
+                new PollOption(),
+                new PollOption(),
+                     };
+                pollOptions[0].Text = "EYE";
+                pollOptions[1].Text = "Google";
+                pollOptions[2].Text = "Microsoft";
+
+                var poll = new Poll
+                {
+                    Question = "Choose your subscription preference:",
+                    Options = pollOptions,
+                };
+                var stringOptions = pollOptions.Select(option => option.Text).ToArray();
+
+                await _botClient.SendPollAsync(
+                   chatId: message.Chat.Id,
+                   question: "Which is your Company?",
+                   options: stringOptions,
+                   cancellationToken: cancellationToken
+               );
+            }
+            else
+            {
+
+
+
+
+                await _botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: $"Thank you for sharing your phone number: {phoneNumber}  You will get regular Update",
+                    cancellationToken: cancellationToken);
+
+                //DateTimeOffset dateTimeOffset = DateTimeOffset.UtcNow; // Example
+                //DateTime dateTime = dateTimeOffset.DateTime;
+
+                //await _botClient.RestrictChatMemberAsync(
+                //    chatId: message.Chat.Id,
+                //    userId: message.From.Id, // Restrict the specific user who shared the contact
+                //    permissions: new ChatPermissions
+                //    {
+                //        CanSendMessages = false,
+                //    },
+                //    untilDate: dateTime.AddMinutes(5),
+                //    cancellationToken: cancellationToken);
+
+
+            }
+            //var requestContactButton = new KeyboardButton("Share Contact")
+            //{
+            //    RequestContact = false
+            //};
+
+            //var requestReplyKeyboard = new ReplyKeyboardMarkup(new[]
+            //{
+            // new[] { requestContactButton }
+            // });
+            //requestReplyKeyboard.IsPersistent = false;
+
+            //ReplyKeyboardMarkup updatedKeyboard = new ReplyKeyboardMarkup(new[] { new InlineKeyboardButton[0] });
+            //InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup(new[] { new InlineKeyboardButton[0] });
+
+            //await _botClient.EditMessageReplyMarkupAsync(chatId: message.Chat.Id, messageId: message.MessageId, replyMarkup: new ReplyKeyboardRemove());
+
         }
         else
         {
-
-            
-
-            await _botClient.SendTextMessageAsync(
-                chatId: message.Chat.Id,
-                text: $"Thank you for sharing your phone number: {phoneNumber}  You will get regular Update",
-                cancellationToken: cancellationToken);
-
-            DateTimeOffset dateTimeOffset = DateTimeOffset.UtcNow; // Example
-            DateTime dateTime = dateTimeOffset.DateTime;
-
-            await _botClient.RestrictChatMemberAsync(
-                chatId: message.Chat.Id,
-                userId: message.From.Id, // Restrict the specific user who shared the contact
-                permissions: new ChatPermissions
+            if (message.Text == "/start")
+            {
+                InlineKeyboardMarkup inlineKeyboard = new(
+                new[]
                 {
-                    CanSendMessages = false,
-                },
-                untilDate: dateTime.AddMinutes(5),
-                cancellationToken: cancellationToken);
+                new[] { InlineKeyboardButton.WithCallbackData("Subscribe", "request_contact_callback") }
+                });
+
+
+                await _botClient.SendTextMessageAsync(
+                     chatId: message.Chat.Id,
+                     text: "Subscribe",
+                     replyMarkup: inlineKeyboard,
+                     cancellationToken: cancellationToken
+                 );
+
+            }
+            else
+            {
+                await _botClient.DeleteMessageAsync(
+                 chatId: message.Chat.Id,
+                 messageId: message.MessageId,
+                 cancellationToken: cancellationToken
+              );
+            }
+
 
 
         }
 
+
+
+    }
+
+    public async Task DeleteMessage(ITelegramBotClient _botClient, Message message, CancellationToken cancellationToken)
+    {
+
+        await _botClient.DeleteMessageAsync(
+           chatId: message.Chat.Id,
+           messageId: message.MessageId,
+           cancellationToken: cancellationToken
+        );
 
     }
 
@@ -367,6 +470,22 @@ public class UpdateHandler : IUpdateHandler
         await _botClient.SendTextMessageAsync(
             chatId: chatId,
             text: $"Thank you for voting in the poll!",
+            cancellationToken: cancellationToken
+        );
+    }
+
+    //HandelBlock
+
+    private async Task HandelBlock(ChatMemberUpdated chatMember, CancellationToken cancellationToken)
+    {
+        var date = chatMember.Date;
+        var a = chatMember.NewChatMember.Status;
+        var b = chatMember.OldChatMember.Status;
+
+
+        await _botClient.SendTextMessageAsync(
+            chatId: chatMember.Chat.Id,
+            text: $"You block the Notification App",
             cancellationToken: cancellationToken
         );
     }
@@ -440,7 +559,7 @@ public class UpdateHandler : IUpdateHandler
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
     }
 
-    public async Task SendMessage(long U,string m)
+    public async Task SendMessage(long U, string m)
     {
         await _botClient.SendTextMessageAsync(chatId: U, text: m);
     }

@@ -2,6 +2,6 @@
 {
     public class BotConfiguration
     {
-        public string Token { get; set; } = null!;
+        public string BotToken { get; set; } = null!;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using AppNotification.Enitiy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 
 namespace AppNotification.Controllers;
@@ -8,20 +9,23 @@ namespace AppNotification.Controllers;
 [ApiController]
 public class NotificationController : ControllerBase
 {
-    private readonly TelegramBotClient _botClient;
+    private readonly ITelegramBotClient _botClient;
 
-    public NotificationController(TelegramBotClient botClient)
+    public NotificationController(ITelegramBotClient botClient)
     {
         _botClient = botClient;
     }
+
+    
 
     [HttpPost("send-notification")]
     public async Task<IActionResult> SendNotification([FromBody] NotificationRequest request)
     {
         try
         {
+            
             var b = "6189079292";
-            await _botClient.SendTextMessageAsync(request.ChatId, request.Message);
+            var tv = await _botClient.SendTextMessageAsync(request.ChatId, request.Message);
             return Ok("Notification sent successfully");
         }
         catch (Exception ex)

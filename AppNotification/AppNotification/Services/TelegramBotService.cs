@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AppNotification.Enitiy;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -7,16 +8,14 @@ namespace AppNotification.Services;
 
 public class TelegramBotService : IHostedService
 {
-    private readonly IOptions<BotConfiguration> _botConfig;
+    private readonly BotConfiguration _botConfig;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly TelegramBotClient _botClient;
 
     public TelegramBotService(IOptions<BotConfiguration> botConfig, IHttpClientFactory httpClientFactory)
     {
-        _botConfig = botConfig;
-        _httpClientFactory = httpClientFactory;
-        var options = new TelegramBotClientOptions(_botConfig.Value.BotToken);
-        _botClient = new TelegramBotClient(options, _httpClientFactory.CreateClient("telegram_bot_client"));
+        var options = new TelegramBotClientOptions(botConfig.Value.BotToken);
+        _botClient = new TelegramBotClient(options, httpClientFactory.CreateClient("telegram_bot_client"));
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
